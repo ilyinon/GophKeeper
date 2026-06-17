@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - "**"
+      - main
     tags-ignore:
       - "v*"
   pull_request:
@@ -28,6 +28,11 @@ jobs:
 
       - name: Run Go tests
         run: go test ./...
+
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
 
       - name: Generate Swagger
         run: make swagger
