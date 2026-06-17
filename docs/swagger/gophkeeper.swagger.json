@@ -1,0 +1,567 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "GophKeeper API",
+    "description": "Swagger description generated from the GophKeeper gRPC proto contract. The production transport is gRPC; HTTP paths document the equivalent JSON mapping. Byte fields are base64-encoded strings.",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "AuthService",
+      "description": "Registration and authentication methods."
+    },
+    {
+      "name": "VaultService",
+      "description": "Opaque encrypted vault item methods."
+    }
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/auth/login": {
+      "post": {
+        "summary": "Authenticate an existing user",
+        "operationId": "AuthService_Login",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AuthResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1LoginRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ],
+        "x-grpc-method": "Login",
+        "x-grpc-service": "gophkeeper.v1.AuthService"
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "operationId": "AuthService_Register",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AuthResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RegisterRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ],
+        "x-grpc-method": "Register",
+        "x-grpc-service": "gophkeeper.v1.AuthService"
+      }
+    },
+    "/v1/items": {
+      "get": {
+        "summary": "List opaque encrypted vault items",
+        "operationId": "VaultService_ListItems",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListItemsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "includeDeleted",
+            "description": "When true, deletion tombstones are returned.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "ListItems",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      },
+      "post": {
+        "summary": "Create an opaque encrypted vault item",
+        "operationId": "VaultService_CreateItem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ItemHeader"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateItemRequest"
+            }
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "CreateItem",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      }
+    },
+    "/v1/items/{id}": {
+      "get": {
+        "summary": "Get one opaque encrypted vault item",
+        "operationId": "VaultService_GetItem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EncryptedItem"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Vault item UUID.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "GetItem",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      },
+      "delete": {
+        "summary": "Delete an opaque encrypted vault item",
+        "operationId": "VaultService_DeleteItem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteItemResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Vault item UUID.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "expectedRevision",
+            "description": "Optimistic concurrency revision expected by the client.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "DeleteItem",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      },
+      "put": {
+        "summary": "Update an opaque encrypted vault item",
+        "operationId": "VaultService_UpdateItem",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ItemHeader"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Vault item UUID.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/VaultServiceUpdateItemBody"
+            }
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "UpdateItem",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      }
+    },
+    "/v1/sync": {
+      "get": {
+        "summary": "Synchronize opaque encrypted item changes",
+        "operationId": "VaultService_Sync",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SyncResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "afterSyncVersion",
+            "description": "Return changes with sync_version greater than this cursor.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "VaultService"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-grpc-method": "Sync",
+        "x-grpc-service": "gophkeeper.v1.VaultService"
+      }
+    }
+  },
+  "definitions": {
+    "VaultServiceUpdateItemBody": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "type": "string",
+          "format": "int64",
+          "description": "Optimistic concurrency revision expected by the client.",
+          "minimum": 1
+        },
+        "nonce": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded AES-GCM nonce."
+        },
+        "ciphertext": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded encrypted client payload."
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1AuthResponse": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user UUID."
+        },
+        "accessToken": {
+          "type": "string",
+          "description": "JWT access token."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "kdfSalt": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded client KDF salt."
+        }
+      }
+    },
+    "v1CreateItemRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional client-generated item UUID."
+        },
+        "nonce": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded AES-GCM nonce."
+        },
+        "ciphertext": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded encrypted client payload."
+        }
+      }
+    },
+    "v1DeleteItemResponse": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "$ref": "#/definitions/v1ItemHeader"
+        }
+      }
+    },
+    "v1EncryptedItem": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "$ref": "#/definitions/v1ItemHeader"
+        },
+        "nonce": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded AES-GCM nonce. Empty for tombstones."
+        },
+        "ciphertext": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded encrypted client payload. Empty for tombstones."
+        }
+      }
+    },
+    "v1ItemHeader": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Vault item UUID."
+        },
+        "revision": {
+          "type": "string",
+          "format": "int64",
+          "description": "Optimistic concurrency revision."
+        },
+        "syncVersion": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Monotonic user sync cursor."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1ListItemsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1EncryptedItem"
+          }
+        }
+      }
+    },
+    "v1LoginRequest": {
+      "type": "object",
+      "properties": {
+        "login": {
+          "type": "string",
+          "description": "User login."
+        },
+        "password": {
+          "type": "string",
+          "format": "password",
+          "description": "User password."
+        }
+      }
+    },
+    "v1RegisterRequest": {
+      "type": "object",
+      "properties": {
+        "login": {
+          "type": "string",
+          "description": "User login.",
+          "minLength": 3
+        },
+        "password": {
+          "type": "string",
+          "format": "password",
+          "description": "User password.",
+          "minLength": 8
+        },
+        "kdfSalt": {
+          "type": "string",
+          "format": "byte",
+          "description": "Base64-encoded client KDF salt."
+        }
+      }
+    },
+    "v1SyncResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1EncryptedItem"
+          }
+        },
+        "currentSyncVersion": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Current monotonic user sync cursor."
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "description": "JWT access token in the form: Bearer \u003ctoken\u003e",
+      "name": "Authorization",
+      "in": "header"
+    }
+  }
+}
