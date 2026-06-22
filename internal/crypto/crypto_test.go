@@ -6,7 +6,7 @@ import (
 )
 
 func TestCipherEncryptDecrypt(t *testing.T) {
-	key := DeriveVaultKey("correct horse battery staple", bytes.Repeat([]byte{1}, SaltSize))
+	key := DeriveVaultKey("correct horse battery staple", bytes.Repeat([]byte{1}, SaltSize), NewVaultKeyParams())
 	cipher, err := NewAESGCM(key)
 	if err != nil {
 		t.Fatalf("NewAESGCM: %v", err)
@@ -30,7 +30,7 @@ func TestCipherEncryptDecrypt(t *testing.T) {
 }
 
 func TestCipherRejectsTamperedCiphertext(t *testing.T) {
-	key := DeriveVaultKey("password", bytes.Repeat([]byte{2}, SaltSize))
+	key := DeriveVaultKey("password", bytes.Repeat([]byte{2}, SaltSize), NewVaultKeyParams())
 	cipher, err := NewAESGCM(key)
 	if err != nil {
 		t.Fatalf("NewAESGCM: %v", err)
@@ -49,5 +49,21 @@ func TestCipherRejectsTamperedCiphertext(t *testing.T) {
 func TestNewAESGCMRejectsWrongKeySize(t *testing.T) {
 	if _, err := NewAESGCM([]byte("short")); err == nil {
 		t.Fatal("NewAESGCM accepted short key")
+	}
+}
+
+func TestDeriveVaultKeyUsesConfiguredParams(t *testing.T) {
+	salt := bytes.Repeat([]byte{3}, SaltSize)
+	fast := VaultKeyParams{Memory: 1024, Iterations: 1, Parallelism: 1, KeyLength: KeySize}
+	stronger := VaultKeyParams{Memory: 1024, Iterations: 2, Parallelism: 1, KeyLength: KeySize}
+
+	fastKey := DeriveVaultKey("password", salt, fast)
+	strongerKey := DeriveVaultKey("password", salt, stronger)
+
+	if len(fastKey) != KeySize {
+		t.Fatalf("key length = %d, want %d", len(fastKey), KeySize)
+	}
+	if bytes.Equal(fastKey, strongerKey) {
+		t.Fatal("different Argon2id params produced identical vault keys")
 	}
 }

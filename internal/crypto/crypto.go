@@ -19,6 +19,24 @@ const (
 	SaltSize = 16
 )
 
+// VaultKeyParams contains Argon2id parameters for deriving the client vault key.
+type VaultKeyParams struct {
+	Memory      uint32
+	Iterations  uint32
+	Parallelism uint8
+	KeyLength   uint32
+}
+
+// NewVaultKeyParams returns default Argon2id parameters for vault key derivation.
+func NewVaultKeyParams() VaultKeyParams {
+	return VaultKeyParams{
+		Memory:      64 * 1024,
+		Iterations:  3,
+		Parallelism: 4,
+		KeyLength:   KeySize,
+	}
+}
+
 // Cipher encrypts and decrypts vault payloads using AES-256-GCM.
 type Cipher struct {
 	aead cipher.AEAD
@@ -62,8 +80,9 @@ func (c *Cipher) Decrypt(nonce, ciphertext []byte) ([]byte, error) {
 }
 
 // DeriveVaultKey derives the client-side encryption key from a password and salt.
-func DeriveVaultKey(password string, salt []byte) []byte {
-	return argon2.IDKey([]byte(password), salt, 3, 64*1024, 4, KeySize)
+func DeriveVaultKey(password string, salt []byte, params VaultKeyParams) []byte {
+	params = params.withDefaults()
+	return argon2.IDKey([]byte(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 }
 
 // RandomBytes returns cryptographically secure random bytes.
@@ -73,4 +92,21 @@ func RandomBytes(size int) ([]byte, error) {
 		return nil, fmt.Errorf("read random bytes: %w", err)
 	}
 	return out, nil
+}
+
+func (p VaultKeyParams) withDefaults() VaultKeyParams {
+	defaults := NewVaultKeyParams()
+	if p.Memory == 0 {
+		p.Memory = defaults.Memory
+	}
+	if p.Iterations == 0 {
+		p.Iterations = defaults.Iterations
+	}
+	if p.Parallelism == 0 {
+		p.Parallelism = defaults.Parallelism
+	}
+	if p.KeyLength == 0 {
+		p.KeyLength = defaults.KeyLength
+	}
+	return p
 }

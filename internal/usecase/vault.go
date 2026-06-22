@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/google/uuid"
@@ -117,7 +118,7 @@ func (u *VaultUseCase) Get(ctx context.Context, userID, itemID uuid.UUID) (entit
 }
 
 // List returns encrypted items owned by the user.
-func (u *VaultUseCase) List(ctx context.Context, userID uuid.UUID, includeDeleted bool) ([]entity.VaultItem, error) {
+func (u *VaultUseCase) List(ctx context.Context, userID uuid.UUID, includeDeleted bool) (iter.Seq2[entity.VaultItem, error], error) {
 	if userID == uuid.Nil {
 		return nil, fmt.Errorf("%w: user id is required", apperrors.ErrInvalidInput)
 	}
@@ -125,7 +126,7 @@ func (u *VaultUseCase) List(ctx context.Context, userID uuid.UUID, includeDelete
 }
 
 // Sync returns encrypted changes after a client sync cursor.
-func (u *VaultUseCase) Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) ([]entity.VaultItem, uint64, error) {
+func (u *VaultUseCase) Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) (iter.Seq2[entity.VaultItem, error], uint64, error) {
 	if userID == uuid.Nil {
 		return nil, 0, fmt.Errorf("%w: user id is required", apperrors.ErrInvalidInput)
 	}

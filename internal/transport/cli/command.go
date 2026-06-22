@@ -215,7 +215,7 @@ func (a *app) addCommand() *cobra.Command {
 				return err
 			}
 			defer store.Close()
-			cipher, err := unlock(session, flags.password)
+			cipher, err := unlock(session, flags.password, a.cfg.VaultKeyParams)
 			if err != nil {
 				return err
 			}
@@ -272,7 +272,7 @@ func (a *app) listCommand() *cobra.Command {
 					return err
 				}
 			}
-			cipher, err := unlock(session, flags.password)
+			cipher, err := unlock(session, flags.password, a.cfg.VaultKeyParams)
 			if err != nil {
 				return err
 			}
@@ -322,7 +322,7 @@ func (a *app) getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cipher, err := unlock(session, flags.password)
+			cipher, err := unlock(session, flags.password, a.cfg.VaultKeyParams)
 			if err != nil {
 				return err
 			}
@@ -369,7 +369,7 @@ func (a *app) updateCommand() *cobra.Command {
 			if flags.revision > 0 {
 				expectedRevision = flags.revision
 			}
-			cipher, err := unlock(session, flags.password)
+			cipher, err := unlock(session, flags.password, a.cfg.VaultKeyParams)
 			if err != nil {
 				return err
 			}
@@ -608,11 +608,11 @@ func readPassword(value string) (string, error) {
 	return strings.TrimRight(password, "\r\n"), nil
 }
 
-func unlock(session localsqlite.Session, password string) (*vaultcrypto.Cipher, error) {
+func unlock(session localsqlite.Session, password string, params vaultcrypto.VaultKeyParams) (*vaultcrypto.Cipher, error) {
 	actualPassword, err := readPassword(password)
 	if err != nil {
 		return nil, err
 	}
-	key := vaultcrypto.DeriveVaultKey(actualPassword, session.KDFSalt)
+	key := vaultcrypto.DeriveVaultKey(actualPassword, session.KDFSalt, params)
 	return vaultcrypto.NewAESGCM(key)
 }

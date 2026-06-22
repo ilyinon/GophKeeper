@@ -60,7 +60,7 @@ func TestBuildPayloadRejectsUnsupportedType(t *testing.T) {
 }
 
 func TestDecryptPayload(t *testing.T) {
-	key := vaultcrypto.DeriveVaultKey("password", bytes.Repeat([]byte{1}, vaultcrypto.SaltSize))
+	key := vaultcrypto.DeriveVaultKey("password", bytes.Repeat([]byte{1}, vaultcrypto.SaltSize), vaultcrypto.NewVaultKeyParams())
 	cipher, err := vaultcrypto.NewAESGCM(key)
 	if err != nil {
 		t.Fatalf("NewAESGCM: %v", err)

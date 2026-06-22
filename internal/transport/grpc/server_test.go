@@ -2,6 +2,7 @@ package grpctransport
 
 import (
 	"context"
+	"iter"
 	"net"
 	"strings"
 	"testing"
@@ -270,22 +271,27 @@ func (m *transportMemoryVault) Get(_ context.Context, userID, itemID uuid.UUID) 
 	return item, nil
 }
 
-func (m *transportMemoryVault) List(_ context.Context, userID uuid.UUID, includeDeleted bool) ([]entity.VaultItem, error) {
-	var out []entity.VaultItem
-	for _, item := range m.items {
-		if item.UserID == userID && (includeDeleted || !item.IsDeleted()) {
-			out = append(out, item)
+func (m *transportMemoryVault) List(_ context.Context, userID uuid.UUID, includeDeleted bool) (iter.Seq2[entity.VaultItem, error], error) {
+	return func(yield func(entity.VaultItem, error) bool) {
+		for _, item := range m.items {
+			if item.UserID == userID && (includeDeleted || !item.IsDeleted()) {
+				if !yield(item, nil) {
+					return
+				}
+			}
 		}
-	}
-	return out, nil
+	}, nil
 }
 
-func (m *transportMemoryVault) Sync(_ context.Context, userID uuid.UUID, afterSyncVersion uint64) ([]entity.VaultItem, uint64, error) {
-	var out []entity.VaultItem
-	for _, item := range m.items {
-		if item.UserID == userID && item.SyncVersion > afterSyncVersion {
-			out = append(out, item)
+func (m *transportMemoryVault) Sync(_ context.Context, userID uuid.UUID, afterSyncVersion uint64) (iter.Seq2[entity.VaultItem, error], uint64, error) {
+	items := func(yield func(entity.VaultItem, error) bool) {
+		for _, item := range m.items {
+			if item.UserID == userID && item.SyncVersion > afterSyncVersion {
+				if !yield(item, nil) {
+					return
+				}
+			}
 		}
 	}
-	return out, m.sync, nil
+	return items, m.sync, nil
 }

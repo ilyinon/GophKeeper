@@ -4,7 +4,10 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
+
+	vaultcrypto "github.com/oilyin/gophkeeper/internal/crypto"
 )
 
 const (
@@ -26,10 +29,11 @@ type ServerConfig struct {
 
 // ClientConfig contains GophKeeper CLI settings.
 type ClientConfig struct {
-	ServerAddr string
-	CachePath  string
-	TLSCAFile  string
-	Insecure   bool
+	ServerAddr     string
+	CachePath      string
+	TLSCAFile      string
+	Insecure       bool
+	VaultKeyParams vaultcrypto.VaultKeyParams
 }
 
 // LoadServer returns server configuration from environment variables.
@@ -46,11 +50,18 @@ func LoadServer() ServerConfig {
 
 // LoadClient returns CLI configuration from environment variables.
 func LoadClient() ClientConfig {
+	vaultKeyParams := vaultcrypto.NewVaultKeyParams()
 	return ClientConfig{
 		ServerAddr: env("GOPHKEEPER_SERVER_ADDR", DefaultServerAddress),
 		CachePath:  env("GOPHKEEPER_CACHE_PATH", defaultCachePath()),
 		TLSCAFile:  os.Getenv("GOPHKEEPER_TLS_CA_FILE"),
 		Insecure:   env("GOPHKEEPER_INSECURE", "true") == "true",
+		VaultKeyParams: vaultcrypto.VaultKeyParams{
+			Memory:      envUint32("GOPHKEEPER_VAULT_KDF_MEMORY", vaultKeyParams.Memory),
+			Iterations:  envUint32("GOPHKEEPER_VAULT_KDF_ITERATIONS", vaultKeyParams.Iterations),
+			Parallelism: envUint8("GOPHKEEPER_VAULT_KDF_PARALLELISM", vaultKeyParams.Parallelism),
+			KeyLength:   vaultKeyParams.KeyLength,
+		},
 	}
 }
 
@@ -71,6 +82,30 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return duration
+}
+
+func envUint32(key string, fallback uint32) uint32 {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil || parsed == 0 {
+		return fallback
+	}
+	return uint32(parsed)
+}
+
+func envUint8(key string, fallback uint8) uint8 {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseUint(value, 10, 8)
+	if err != nil || parsed == 0 {
+		return fallback
+	}
+	return uint8(parsed)
 }
 
 func defaultCachePath() string {

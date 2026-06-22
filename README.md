@@ -33,6 +33,12 @@ SQLite-кэш не хранит plaintext. В нём лежат:
 
 Для чтения секрета из кэша клиенту всё равно нужен master password, из которого локально выводится AES-ключ.
 
+Параметры Argon2id для вывода vault-key настраиваются через переменные окружения клиента:
+
+* `GOPHKEEPER_VAULT_KDF_MEMORY` — память в KiB, по умолчанию `65536`;
+* `GOPHKEEPER_VAULT_KDF_ITERATIONS` — число итераций, по умолчанию `3`;
+* `GOPHKEEPER_VAULT_KDF_PARALLELISM` — параллелизм, по умолчанию `4`.
+
 ### Сборка и тесты
 
 ```bash

@@ -28,10 +28,16 @@ func TestLoadClientFromEnv(t *testing.T) {
 	t.Setenv("GOPHKEEPER_CACHE_PATH", "/tmp/cache.db")
 	t.Setenv("GOPHKEEPER_TLS_CA_FILE", "ca.pem")
 	t.Setenv("GOPHKEEPER_INSECURE", "false")
+	t.Setenv("GOPHKEEPER_VAULT_KDF_MEMORY", "32768")
+	t.Setenv("GOPHKEEPER_VAULT_KDF_ITERATIONS", "2")
+	t.Setenv("GOPHKEEPER_VAULT_KDF_PARALLELISM", "1")
 
 	cfg := LoadClient()
 	if cfg.ServerAddr != "example:3200" || cfg.CachePath != "/tmp/cache.db" || cfg.TLSCAFile != "ca.pem" || cfg.Insecure {
 		t.Fatalf("client config = %+v", cfg)
+	}
+	if cfg.VaultKeyParams.Memory != 32768 || cfg.VaultKeyParams.Iterations != 2 || cfg.VaultKeyParams.Parallelism != 1 {
+		t.Fatalf("vault key params = %+v", cfg.VaultKeyParams)
 	}
 }
 

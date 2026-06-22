@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"iter"
 	"testing"
 
 	"github.com/google/uuid"
@@ -80,17 +81,19 @@ func TestVaultUseCaseReadMethods(t *testing.T) {
 	if got.ID != created.ID {
 		t.Fatalf("got id = %s, want %s", got.ID, created.ID)
 	}
-	listed, err := vault.List(context.Background(), userID, false)
+	listedSeq, err := vault.List(context.Background(), userID, false)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
+	listed := collectVaultItems(t, listedSeq)
 	if len(listed) != 1 {
 		t.Fatalf("len(listed) = %d, want 1", len(listed))
 	}
-	synced, cursor, err := vault.Sync(context.Background(), userID, 0)
+	syncedSeq, cursor, err := vault.Sync(context.Background(), userID, 0)
 	if err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
+	synced := collectVaultItems(t, syncedSeq)
 	if len(synced) != 1 || cursor != created.SyncVersion {
 		t.Fatalf("sync = %d items cursor %d", len(synced), cursor)
 	}
@@ -157,22 +160,39 @@ func (m *memoryVault) Get(_ context.Context, userID, itemID uuid.UUID) (entity.V
 	return item, nil
 }
 
-func (m *memoryVault) List(_ context.Context, userID uuid.UUID, includeDeleted bool) ([]entity.VaultItem, error) {
-	var out []entity.VaultItem
-	for _, item := range m.items {
-		if item.UserID == userID && (includeDeleted || !item.IsDeleted()) {
-			out = append(out, item)
+func (m *memoryVault) List(_ context.Context, userID uuid.UUID, includeDeleted bool) (iter.Seq2[entity.VaultItem, error], error) {
+	return func(yield func(entity.VaultItem, error) bool) {
+		for _, item := range m.items {
+			if item.UserID == userID && (includeDeleted || !item.IsDeleted()) {
+				if !yield(item, nil) {
+					return
+				}
+			}
 		}
-	}
-	return out, nil
+	}, nil
 }
 
-func (m *memoryVault) Sync(_ context.Context, userID uuid.UUID, afterSyncVersion uint64) ([]entity.VaultItem, uint64, error) {
-	var out []entity.VaultItem
-	for _, item := range m.items {
-		if item.UserID == userID && item.SyncVersion > afterSyncVersion {
-			out = append(out, item)
+func (m *memoryVault) Sync(_ context.Context, userID uuid.UUID, afterSyncVersion uint64) (iter.Seq2[entity.VaultItem, error], uint64, error) {
+	items := func(yield func(entity.VaultItem, error) bool) {
+		for _, item := range m.items {
+			if item.UserID == userID && item.SyncVersion > afterSyncVersion {
+				if !yield(item, nil) {
+					return
+				}
+			}
 		}
 	}
-	return out, m.sync, nil
+	return items, m.sync, nil
+}
+
+func collectVaultItems(t *testing.T, items iter.Seq2[entity.VaultItem, error]) []entity.VaultItem {
+	t.Helper()
+	var out []entity.VaultItem
+	for item, err := range items {
+		if err != nil {
+			t.Fatalf("iterate vault items: %v", err)
+		}
+		out = append(out, item)
+	}
+	return out
 }

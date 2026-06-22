@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -61,7 +62,7 @@ func (r *VaultRepository) Update(ctx context.Context, item entity.VaultItem, exp
 	updated, err := scanVaultItem(row)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrNotFound) {
-			return entity.VaultItem{}, r.classifyWriteMiss(ctx, item.UserID, item.ID, expectedRevision)
+			return entity.VaultItem{}, r.classifyWriteMiss(ctx, item.UserID, item.ID)
 		}
 		return entity.VaultItem{}, err
 	}
@@ -85,7 +86,7 @@ func (r *VaultRepository) Delete(ctx context.Context, userID, itemID uuid.UUID, 
 	deleted, err := scanVaultItem(row)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrNotFound) {
-			return entity.VaultItem{}, r.classifyWriteMiss(ctx, userID, itemID, expectedRevision)
+			return entity.VaultItem{}, r.classifyWriteMiss(ctx, userID, itemID)
 		}
 		return entity.VaultItem{}, err
 	}
@@ -103,38 +104,18 @@ func (r *VaultRepository) Get(ctx context.Context, userID, itemID uuid.UUID) (en
 }
 
 // List returns items owned by userID.
-func (r *VaultRepository) List(ctx context.Context, userID uuid.UUID, includeDeleted bool) ([]entity.VaultItem, error) {
+func (r *VaultRepository) List(ctx context.Context, userID uuid.UUID, includeDeleted bool) (iter.Seq2[entity.VaultItem, error], error) {
 	query := `SELECT id, user_id, revision, sync_version, nonce, ciphertext, created_at, updated_at, deleted_at
 	          FROM vault_items WHERE user_id = $1`
 	if !includeDeleted {
 		query += ` AND deleted_at IS NULL`
 	}
 	query += ` ORDER BY updated_at DESC, id`
-	rows, err := r.pool.Query(ctx, query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("list vault items: %w", err)
-	}
-	defer rows.Close()
-	return scanVaultItems(rows)
+	return r.queryVaultItems(ctx, "list vault items", query, userID), nil
 }
 
 // Sync returns item changes after a sync cursor and the current user cursor.
-func (r *VaultRepository) Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) ([]entity.VaultItem, uint64, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT id, user_id, revision, sync_version, nonce, ciphertext, created_at, updated_at, deleted_at
-		 FROM vault_items
-		 WHERE user_id = $1 AND sync_version > $2
-		 ORDER BY sync_version ASC`,
-		userID, int64(afterSyncVersion),
-	)
-	if err != nil {
-		return nil, 0, fmt.Errorf("sync vault items: %w", err)
-	}
-	items, err := scanVaultItems(rows)
-	if err != nil {
-		return nil, 0, err
-	}
-
+func (r *VaultRepository) Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) (iter.Seq2[entity.VaultItem, error], uint64, error) {
 	var current int64
 	if err := r.pool.QueryRow(ctx,
 		`SELECT GREATEST(COALESCE(MAX(sync_version), 0), $2)
@@ -143,42 +124,53 @@ func (r *VaultRepository) Sync(ctx context.Context, userID uuid.UUID, afterSyncV
 	).Scan(&current); err != nil {
 		return nil, 0, fmt.Errorf("read sync cursor: %w", err)
 	}
+	items := r.queryVaultItems(ctx, "sync vault items",
+		`SELECT id, user_id, revision, sync_version, nonce, ciphertext, created_at, updated_at, deleted_at
+		 FROM vault_items
+		 WHERE user_id = $1 AND sync_version > $2
+		 ORDER BY sync_version ASC`,
+		userID, int64(afterSyncVersion),
+	)
 	return items, uint64(current), nil
 }
 
-func (r *VaultRepository) classifyWriteMiss(ctx context.Context, userID, itemID uuid.UUID, expectedRevision int64) error {
-	var revision int64
-	var deletedAt pgtype.Timestamptz
-	err := r.pool.QueryRow(ctx,
-		`SELECT revision, deleted_at FROM vault_items WHERE id = $1 AND user_id = $2`,
+func (r *VaultRepository) classifyWriteMiss(ctx context.Context, userID, itemID uuid.UUID) error {
+	var exists bool
+	if err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM vault_items WHERE id = $1 AND user_id = $2)`,
 		itemID, userID,
-	).Scan(&revision, &deletedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return apperrors.ErrNotFound
-	}
-	if err != nil {
+	).Scan(&exists); err != nil {
 		return fmt.Errorf("classify vault write miss: %w", err)
 	}
-	if revision != expectedRevision || deletedAt.Valid {
-		return apperrors.ErrConflict
+	if !exists {
+		return apperrors.ErrNotFound
 	}
 	return apperrors.ErrConflict
 }
 
-func scanVaultItems(rows pgx.Rows) ([]entity.VaultItem, error) {
-	defer rows.Close()
-	var items []entity.VaultItem
-	for rows.Next() {
-		item, err := scanVaultItem(rows)
+func (r *VaultRepository) queryVaultItems(ctx context.Context, operation, query string, args ...any) iter.Seq2[entity.VaultItem, error] {
+	return func(yield func(entity.VaultItem, error) bool) {
+		rows, err := r.pool.Query(ctx, query, args...)
 		if err != nil {
-			return nil, err
+			yield(entity.VaultItem{}, fmt.Errorf("%s: %w", operation, err))
+			return
 		}
-		items = append(items, item)
+		defer rows.Close()
+
+		for rows.Next() {
+			item, err := scanVaultItem(rows)
+			if err != nil {
+				yield(entity.VaultItem{}, err)
+				return
+			}
+			if !yield(item, nil) {
+				return
+			}
+		}
+		if err := rows.Err(); err != nil {
+			yield(entity.VaultItem{}, fmt.Errorf("iterate vault items: %w", err))
+		}
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate vault items: %w", err)
-	}
-	return items, nil
 }
 
 func scanVaultItem(row pgx.Row) (entity.VaultItem, error) {

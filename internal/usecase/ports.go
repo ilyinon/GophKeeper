@@ -3,6 +3,7 @@ package usecase
 
 import (
 	"context"
+	"iter"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,8 +24,8 @@ type VaultRepository interface {
 	Update(ctx context.Context, item entity.VaultItem, expectedRevision int64) (entity.VaultItem, error)
 	Delete(ctx context.Context, userID, itemID uuid.UUID, expectedRevision int64) (entity.VaultItem, error)
 	Get(ctx context.Context, userID, itemID uuid.UUID) (entity.VaultItem, error)
-	List(ctx context.Context, userID uuid.UUID, includeDeleted bool) ([]entity.VaultItem, error)
-	Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) ([]entity.VaultItem, uint64, error)
+	List(ctx context.Context, userID uuid.UUID, includeDeleted bool) (iter.Seq2[entity.VaultItem, error], error)
+	Sync(ctx context.Context, userID uuid.UUID, afterSyncVersion uint64) (iter.Seq2[entity.VaultItem, error], uint64, error)
 }
 
 // PasswordService hashes and verifies user passwords.

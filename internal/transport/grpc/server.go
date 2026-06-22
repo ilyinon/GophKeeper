@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/google/uuid"
@@ -160,11 +161,15 @@ func (s *Server) ListItems(ctx context.Context, req *gophkeeperv1.ListItemsReque
 	if err != nil {
 		return nil, toStatusError(err)
 	}
-	items, err := s.vaultUseCase.List(ctx, userID, req.GetIncludeDeleted())
+	itemsSeq, err := s.vaultUseCase.List(ctx, userID, req.GetIncludeDeleted())
 	if err != nil {
 		return nil, toStatusError(err)
 	}
-	return &gophkeeperv1.ListItemsResponse{Items: itemsToProto(items)}, nil
+	items, err := itemsToProto(itemsSeq)
+	if err != nil {
+		return nil, toStatusError(err)
+	}
+	return &gophkeeperv1.ListItemsResponse{Items: items}, nil
 }
 
 // Sync returns opaque encrypted changes after a client cursor.
@@ -173,12 +178,16 @@ func (s *Server) Sync(ctx context.Context, req *gophkeeperv1.SyncRequest) (*goph
 	if err != nil {
 		return nil, toStatusError(err)
 	}
-	items, current, err := s.vaultUseCase.Sync(ctx, userID, req.GetAfterSyncVersion())
+	itemsSeq, current, err := s.vaultUseCase.Sync(ctx, userID, req.GetAfterSyncVersion())
+	if err != nil {
+		return nil, toStatusError(err)
+	}
+	items, err := itemsToProto(itemsSeq)
 	if err != nil {
 		return nil, toStatusError(err)
 	}
 	return &gophkeeperv1.SyncResponse{
-		Items:              itemsToProto(items),
+		Items:              items,
 		CurrentSyncVersion: current,
 	}, nil
 }
@@ -223,12 +232,15 @@ func authResultToProto(result usecase.AuthResult) *gophkeeperv1.AuthResponse {
 	}
 }
 
-func itemsToProto(items []entity.VaultItem) []*gophkeeperv1.EncryptedItem {
-	out := make([]*gophkeeperv1.EncryptedItem, 0, len(items))
-	for _, item := range items {
+func itemsToProto(items iter.Seq2[entity.VaultItem, error]) ([]*gophkeeperv1.EncryptedItem, error) {
+	var out []*gophkeeperv1.EncryptedItem
+	for item, err := range items {
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, itemToProto(item))
 	}
-	return out
+	return out, nil
 }
 
 func itemToProto(item entity.VaultItem) *gophkeeperv1.EncryptedItem {
